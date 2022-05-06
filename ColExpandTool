@@ -1,0 +1,49 @@
+from maya import cmds
+
+# initialise node in maya
+try:
+    component = cmds.polyMoveFacet(ltz=0.1)
+except:
+    cmds.inViewMessage( amg='<hl>No mesh selected<hl>', pos='midCenter', fade=True)
+    cmds.error("No mesh selected")
+   
+# edit initialised node
+def modifyExpand(offset):
+	
+	cmds.polyMoveFacet(component, edit=True, ltz=offset)
+	
+class ExpandUI (object):
+
+	windowName = "CollisionExpander"
+	
+	def show(self):
+		
+		# check if duplicate windows
+		if cmds.window(self.windowName, query=True, exists=True):
+			cmds.deleteUI(self.windowName)
+		
+		cmds.window(self.windowName, tlb=True)
+		
+		self.buildUI()
+		
+		cmds.showWindow()
+	
+	def buildUI(self):
+	
+		column = cmds.columnLayout()
+		
+		row = cmds.rowLayout(numberOfColumns=2)
+		
+		cmds.text(label="Local Transform Z")
+		
+		self.value = cmds.floatField(min=-1, max=1, value=0.1, step=0.01, precision=2, changeCommand=modifyExpand, dragCommand=modifyExpand)
+		
+		cmds.setParent(column)
+		cmds.button(label="Accept", command=self.close)
+		
+	def close(self, *args):
+		
+		cmds.deleteUI(self.windowName)
+
+	
+ExpandUI().show()
