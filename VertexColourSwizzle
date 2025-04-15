@@ -1,0 +1,276 @@
+from maya import cmds
+from maya import OpenMayaUI as omui
+from PySide2.QtWidgets import *
+from PySide2.QtCore import *
+from PySide2.QtGui import *
+from shiboken2 import wrapInstance
+
+global ColourSwitcherInstance
+
+class VertexColourSwitcher(QWidget):
+
+   def __init__(self, parent=None):
+      super(VertexColourSwitcher, self).__init__(parent)
+      object_name = "VertexColourSwitcher_Instance"
+      title = "Vertex Colour Switcher"
+      # close previous instance
+      if cmds.window(object_name, title=title, exists=True):
+         cmds.deleteUI(object_name)
+        
+      self.setWindowFlags(Qt.Window)
+      self.setObjectName(object_name)
+      self.setWindowTitle("Vertex Colour Switcher")
+      self.setGeometry(1500, 300, 480, 320)
+       
+      # Setting colour palette for the table(uses base)so the buttons are clearer
+      self.palette = QGuiApplication.palette()
+      self.palette.setColor(QPalette.Base, QColor(80, 80, 80))
+      self.setPalette(self.palette)
+
+      self.build_ui()
+      self.connect_ui()
+
+      self.get_vertex_colour_groups()
+
+   def build_ui(self):
+       
+      main_layout = QVBoxLayout()
+      self.setLayout(main_layout)
+
+      self.refresh_btn = QPushButton("Refresh Groups")
+      self.refresh_btn.setFixedSize(QSize(100, 25))
+      main_layout.addWidget(self.refresh_btn)
+
+
+      self.channel_select_all_btn = QCheckBox("Select all vertex colour groups")
+      main_layout.addWidget(self.channel_select_all_btn)
+
+      self.channel_table = QTableWidget()
+      self.init_channel_table()
+      main_layout.addWidget(self.channel_table)
+
+      self.execute_btn = QPushButton("Change vertex colours")
+      self.execute_btn.setFixedSize(QSize(400, 50))
+      main_layout.addWidget(self.execute_btn, alignment =Qt.AlignCenter)
+
+      self.fill_channel_table()
+
+   def connect_ui(self):
+      self.refresh_btn.clicked.connect(self.refresh_groups)
+      self.channel_select_all_btn.stateChanged.connect(self.select_edit_channels)
+      self.execute_btn.clicked.connect(self.on_execute_request)
+
+
+   def init_channel_table(self):
+      column_headers = ["Select","Current Vertex Channel", "New Vertex Colour"]
+      num_cols = len(column_headers)
+      num_rows = 3
+
+      self.channel_table.setRowCount(num_rows)
+      self.channel_table.setColumnCount(num_cols)
+
+      self.channel_table.setHorizontalHeaderLabels(column_headers)
+
+      self.channel_table.verticalHeader().setVisible(False)
+
+      self.channel_table.setColumnWidth(0, 50)
+      self.channel_table.setColumnWidth(1, 200)
+      self.channel_table.setColumnWidth(2, 200)
+
+      self.channel_table.setRowHeight(0, 50)
+      self.channel_table.setRowHeight(1, 50)
+      self.channel_table.setRowHeight(2, 50)
+
+
+   def fill_channel_table(self):
+      channel_labels = ["Red Vertex Channel", "Green Vertex Channel", "Blue Vertex Channel"]
+      self.switch_colours = ["Change to Red", "Change to Green", "Change to Blue"]
+      sanFont = QFont("Librarian", 10)
+
+
+      # Adding Vertex channel group name labels
+      for i, channel_name in enumerate(channel_labels):
+         channel_name = QTableWidgetItem(channel_labels[i])
+         channel_name.setFont(sanFont)
+         channel_name.setTextAlignment(Qt.AlignVCenter)
+            
+         if i == 0:
+            channel_name.setForeground(QBrush(QColor(255, 0, 0)))
+               
+         elif i == 1:
+            channel_name.setForeground(QBrush(QColor(0, 255, 0)))
+         else:
+            channel_name.setForeground(QBrush(QColor(0, 100, 255)))
+         self.channel_table.setItem(i, 1, channel_name)
+
+      # Adding cell widgets for checkbox and combobox    
+      for i in range(len(self.switch_colours)):
+         check_box = QCheckBox()
+         check_box.setChecked(True)
+         check_box.stateChanged.connect(self.grey_out_unchecked_rows)
+         self.channel_table.setCellWidget(i, 0, check_box)
+
+         combo_box = QComboBox()
+         combo_box.addItems(self.switch_colours)
+         combo_box.setCurrentIndex(i)
+         combo_box.currentIndexChanged.connect(self.refresh_combo_box)
+         self.channel_table.setCellWidget(i, 2, combo_box)
+      
+      self.refresh_combo_box()     
+           
+
+    
+   def get_vertex_colour_groups(self):
+      self.object_selection = cmds.ls(sl=1)
+      #change selection to vertices
+      vertices = cmds.polyListComponentConversion(toVertex=True)
+      cmds.select(vertices)
+      # create a list of all selected vertices on all selected objects
+      vertices = cmds.ls(sl=1, fl=1)
+
+      # Make empty lists ready for only verts one vertex colour
+      self.redVerts = []
+      self.greenVerts = []
+      self.blueVerts = []
+      #create list of vertex colour values filtered by red channel
+      vertValuesRed = cmds.polyColorPerVertex(query=True, r=True)
+      vertValuesGreen = cmds.polyColorPerVertex(query=True, g=True)
+      vertValuesBlue = cmds.polyColorPerVertex(query=True, b=True)
+
+      #run over each value of the vertex colour values and add those which are red to redVerts list
+      for i, rValue in enumerate(vertValuesRed):
+         if rValue >= 1.0:
+            self.redVerts.append(vertices[i])
+
+      for i, gValue in enumerate(vertValuesGreen):
+         if gValue >= 1.0:
+            self.greenVerts.append(vertices[i])
+
+      for i, bValue in enumerate(vertValuesBlue):
+         if bValue >= 1.0:
+            self.blueVerts.append(vertices[i])
+        
+      cmds.select(self.object_selection)
+
+      self.grouplist = [self.redVerts, self.greenVerts, self.blueVerts]
+
+      for i, item in enumerate(self.grouplist):
+         check_box = self.channel_table.cellWidget(i, 0)
+         if item == []:
+            check_box.setChecked(False)
+            check_box.setDisabled(True)
+         else:
+            check_box.setEnabled(True)
+            check_box.setChecked(True)
+
+
+   def grey_out_unchecked_rows(self):
+      for i in range(self.channel_table.rowCount()):
+         check_box_item = self.channel_table.cellWidget(i, 0)
+         if check_box_item.isChecked():
+            for j in range(1, self.channel_table.columnCount()):
+               item = self.channel_table.item(i, j)
+               if item is not None:
+                  item.setFlags(item.flags() | Qt.ItemIsEnabled)
+               else:
+                  cell_widget = self.channel_table.cellWidget(i, j)
+                  if cell_widget is not None:
+                     cell_widget.setEnabled(True)
+         else:
+            for j in range(1, self.channel_table.columnCount()):
+               item = self.channel_table.item(i, j)
+               if item is not None:
+                  item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+               else:
+                  cell_widget = self.channel_table.cellWidget(i, j)
+                  combo_bx = self.channel_table.cellWidget(i, 2)
+                  if cell_widget is not None:
+                     cell_widget.setDisabled(True)
+                  combo_bx.setCurrentIndex(i)
+      
+
+   def refresh_combo_box(self):
+      self.new_vert_colours = [] 
+       
+      for i in range(len(self.switch_colours)):
+         self.new_vert_colours.append(self.channel_table.cellWidget(i, 2).currentText())
+
+
+
+   def refresh_groups(self):
+      self.fill_channel_table()
+      self.get_vertex_colour_groups()
+      
+
+
+   def select_edit_channels(self):
+      for i in range(self.channel_table.rowCount()):
+         check_box = self.channel_table.cellWidget(i, 0)
+         if self.channel_select_all_btn.isChecked():
+            if check_box.isEnabled():
+               check_box.setChecked(True)
+         else:
+            check_box.setChecked(False)
+
+
+   def convert_new_colours(self, vert_colour_strings):
+
+      for i, item in enumerate(vert_colour_strings):
+         if i == 0:
+            new_r = item[0]
+            if item == "Change to Red":
+               new_r = (1.0, 0.0, 0.0)        
+            elif item == "Change to Green":
+               new_r = (0.0, 1.0, 0.0)     
+            else:
+               new_r = (0.0, 0.0, 1.0)
+         if i == 1:
+            new_g = item[1]
+            if item == "Change to Red":
+               new_g = (1.0, 0.0, 0.0)        
+            elif item == "Change to Green":
+               new_g = (0.0, 1.0, 0.0)     
+            else:
+               new_g = (0.0, 0.0, 1.0)
+         if i == 2:
+            new_b = item[2]
+            if item == "Change to Red":
+               new_b = (1.0, 0.0, 0.0)        
+            elif item == "Change to Green":
+               new_b = (0.0, 1.0, 0.0)     
+            else:
+               new_b = (0.0, 0.0, 1.0)
+
+      return new_r, new_g, new_b
+      
+   def on_execute_request(self):
+     
+      new_colours = self.convert_new_colours(self.new_vert_colours)
+      
+      for i, vertGroup in enumerate(self.grouplist):
+         check_box = self.channel_table.cellWidget(i, 0)
+         if check_box.isChecked():
+            print(i)
+            switch_vertex_colours(vertGroup, new_colours[i], self.object_selection)
+         else:
+            continue
+
+          
+
+def switch_vertex_colours(groupsRGB, new_colours, base_selection):
+   cmds.select(groupsRGB, replace=True)
+   cmds.polyColorPerVertex(rgb=new_colours)
+   cmds.select(base_selection, replace=True)
+      
+
+def get_main_window():
+   
+   ptr = omui.MQtUtil.mainWindow()
+
+   maya_window = wrapInstance(long(ptr), QWidget)
+   return maya_window
+   
+maya_window = get_main_window()
+
+ColourSwitcherInstance = VertexColourSwitcher(maya_window)
+ColourSwitcherInstance.show()
