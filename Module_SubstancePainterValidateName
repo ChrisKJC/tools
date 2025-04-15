@@ -1,0 +1,123 @@
+"""Module to validate texture name.
+
+Rules:
+Name should be split with_
+Name should consist of acronyms: AssetType_AssetDetail1_AssetDetail2_AssetID
+"""
+#default util imports
+from typing import Tuple
+
+props_asset_detail_1_list = ["CHR", "TBL", "LMP", "WIN"]
+props_asset_detail_2_list = ["S", "M", "L"]
+
+weapons_asset_detail_1_list = ["SWD", "BOW", "RFL", "EXP"]
+weapons_asset_detail_2_list = ["COM", "RAR", "EPC"]
+
+character_asset_detail_1_list = ["PLR", "ENM", "CIV"]
+character_asset_detail_2_list = ["ML", "FL"]
+
+def validate_name_props(asset_type_acronym: str, asset_type_detail_1: str, asset_type_detail_2: str) -> Tuple[bool, str]:
+	"""Sub validation function for rules applied to Props texture sets"""
+	is_validation_passed = None
+	validation_details = None
+	if asset_type_acronym != "PROP":
+		is_validation_passed = False
+		validation_details = f"First acronym is for asset type\
+							\nfor asset type 'Props' valid option is 'PROP'.\
+							\nCurrent acronym:{asset_type_acronym}"
+	elif asset_type_detail_1 not in props_asset_detail_1_list:
+		is_validation_passed = False
+		validation_details = f"Second acronym is for asset detail #1\
+							\nfor asset type 'Props' valid options are {props_asset_detail_1_list}.\
+							\nCurrent acronym:{asset_type_detail_1}"
+	elif asset_type_detail_2 not in props_asset_detail_2_list:
+		is_validation_passed = False
+		validation_details = f"Third acronym is for asset detail #2\
+							\nfor asset type 'Props' valid options are {props_asset_detail_2_list}.\
+							\nCurrent acronym:{asset_type_detail_2}"
+	else:
+		is_validation_passed = True
+		validation_details = "Validation is passed!"
+	return is_validation_passed, validation_details
+
+def validate_name_weapons(asset_type_acronym: str, asset_type_detail_1: str, asset_type_detail_2: str) -> Tuple[bool, str]:
+	"""Sub validation function for rules applied to Weapons texture sets"""
+	is_validation_passed = None
+	validation_details = None
+	if asset_type_acronym != "WPN":
+		is_validation_passed = False
+		validation_details = f"First acronym is for asset type\
+							\nfor asset type 'Weapons' valid option is 'WPN'.\
+							\nCurrent acronym:{asset_type_acronym}"
+	elif asset_type_detail_1 not in weapons_asset_detail_1_list:
+		is_validation_passed = False
+		validation_details = f"Second acronym is for asset detail #1\
+							\nfor asset type 'Weapons' valid options are {weapons_asset_detail_1_list}.\
+							\nCurrent acronym:{asset_type_detail_1}"
+	elif asset_type_detail_2 not in weapons_asset_detail_2_list:
+		is_validation_passed = False
+		validation_details = f"Third acronym is for asset detail #2\
+							\nfor asset type 'Weapons' valid options are {weapons_asset_detail_2_list}.\
+							\nCurrent acronym:{asset_type_detail_2}"
+	else:
+		is_validation_passed = True
+		validation_details = "Validation is passed!"
+	return is_validation_passed, validation_details
+
+def validate_name_characters(asset_type_acronym: str, asset_type_detail_1: str, asset_type_detail_2: str) -> Tuple[bool, str]:
+	"""Sub validation function for rules applied to character texture sets"""
+	is_validation_passed = None
+	validation_details = None
+	if asset_type_acronym != "CHAR":
+		is_validation_passed = False
+		validation_details = f"First acronym is for asset type\
+							\nfor asset type 'Characters' valid option is 'CHAR'.\
+							\nCurrent acronym:{asset_type_acronym}"
+	elif asset_type_detail_1 not in character_asset_detail_1_list:
+		is_validation_passed = False
+		validation_details = f"Second acronym is for asset detail #1\
+							\nfor asset type 'Characters' valid options are {character_asset_detail_1_list}.\
+							\nCurrent acronym:{asset_type_detail_1}"
+	elif asset_type_detail_2 not in character_asset_detail_2_list:
+		is_validation_passed = False
+		validation_details = f"Third acronym is for asset detail #2\
+							\nfor asset type 'Characters' valid options are {character_asset_detail_2_list}.\
+							\nCurrent acronym:{asset_type_detail_2}"
+	else:
+		is_validation_passed = True
+		validation_details = "Validation is Passed!"
+	return is_validation_passed, validation_details
+
+def validate_name(asset_type: str, texture_set_name: str) -> Tuple[bool, str]:
+	""" 
+	Core function to validate set name.
+	Performs general rules validation and if passed triggers sub validations for specific types.
+	"""
+	texture_set_name_acronyms = texture_set_name.split("_")
+	
+	# template validation
+	if len(texture_set_name_acronyms) != 4:
+		return False, f"Texture set name should consist of 4 acronyms seperated by underscore symbol _ \
+						\nValid structure: AssetType_AssetDetail1_AssetDetail2_AssetID\
+						\nCurrent number of acronyms:{len(texture_set_name_acronyms)}"
+	
+	asset_type_acronym, asset_type_detail_1, asset_type_detail_2, asset_id = texture_set_name_acronyms
+	
+	# asset id validation
+	if (len(asset_id) != 2) or (not asset_id.isdigit()):
+		return False, f"Last acronym is used to specify Asset ID \
+						\nValid options are any numbers ranging 00 to 99 E.g 01, 55, 17\
+						\nCurrent acronym is:{asset_id}"
+
+	if asset_type == "Props":
+		return validate_name_props(asset_type_acronym, asset_type_detail_1, asset_type_detail_2)
+
+	elif asset_type == "Weapons":
+		return validate_name_weapons(asset_type_acronym, asset_type_detail_1, asset_type_detail_2)
+
+	elif asset_type == "Characters":
+		return validate_name_characters(asset_type_acronym, asset_type_detail_1, asset_type_detail_2)
+
+	return False, f"General validation error. Asset Type is not valid \
+					\nThere is a mismatch between asset type in dropdown list with strings in validate_name function\
+					\nplease contact a tool maintainer for assistance"
